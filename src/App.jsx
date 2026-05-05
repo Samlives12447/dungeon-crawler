@@ -223,6 +223,36 @@ function AiWinPopup({msg,onClose}){
     </div>
   </Modal>);
 }
+function FightArena({monsterIcon,monsterName,combatAnim}){
+  const a=combatAnim;
+  return(<>
+    <style>{`
+      @keyframes lunge-r{0%{transform:translateX(0) scale(1)}40%{transform:translateX(52px) scale(1.12)}100%{transform:translateX(0) scale(1)}}
+      @keyframes lunge-l{0%{transform:translateX(0) scale(1)}40%{transform:translateX(-52px) scale(1.12)}100%{transform:translateX(0) scale(1)}}
+      @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-11px)}40%{transform:translateX(10px)}60%{transform:translateX(-8px)}80%{transform:translateX(5px)}}
+      @keyframes dodge{0%,100%{transform:translateY(0)}35%{transform:translateY(-24px)}}
+      @keyframes flash-hit{0%,100%{filter:none}45%{filter:drop-shadow(0 0 16px #ff2020) brightness(1.7)}}
+    `}</style>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 32px",background:"#070707",borderRadius:4,marginBottom:12,border:`1px solid ${C.border}`,minHeight:110}}>
+      <div style={{textAlign:"center",minWidth:68}}>
+        <div key={`p-${a.tick}`} style={{fontSize:54,display:"inline-block",
+          animation:a.who==="player"&&a.type==="attack"?"lunge-r 0.45s ease-in-out":
+                   a.who==="player"&&a.type==="hit"?"shake 0.4s ease,flash-hit 0.4s ease":
+                   a.who==="player"&&a.type==="dodge"?"dodge 0.35s ease":"none"}}>🧙</div>
+        <div style={{fontSize:11,color:C.goldBright,letterSpacing:1,marginTop:2}}>YOU</div>
+      </div>
+      <div style={{color:C.textDim,fontSize:22,opacity:0.5}}>⚔️</div>
+      <div style={{textAlign:"center",minWidth:68}}>
+        <div key={`m-${a.tick}`} style={{fontSize:54,display:"inline-block",
+          animation:a.who==="monster"&&a.type==="attack"?"lunge-l 0.45s ease-in-out":
+                   a.who==="monster"&&a.type==="hit"?"shake 0.4s ease,flash-hit 0.4s ease":"none"}}>
+          {monsterIcon}
+        </div>
+        <div style={{fontSize:11,color:"#7a3030",letterSpacing:1,marginTop:2}}>{(monsterName||"").toUpperCase()}</div>
+      </div>
+    </div>
+  </>);}
+
 function ActionTile({icon,title,subtitle,borderColor,onClick,disabled}){
   return(<div onClick={!disabled?onClick:undefined} style={{background:C.bgCard,border:`1px solid ${disabled?"#1e1e1e":borderColor||C.border}`,borderRadius:4,padding:"18px 12px",textAlign:"center",cursor:disabled?"default":"pointer",opacity:disabled?0.3:1}}>
     <div style={{fontSize:30,marginBottom:6}}>{icon}</div>
@@ -263,6 +293,7 @@ export default function App(){
   const [aiWinMsg,setAiWinMsg]=useState(null);
   const [playerHitKey,setPlayerHitKey]=useState(0);
   const [monsterHitKey,setMonsterHitKey]=useState(0);
+  const [combatAnim,setCombatAnim]=useState({who:null,type:null,tick:0});
   const logRef=useRef(null);
   useEffect(()=>{if(logRef.current)logRef.current.scrollTop=logRef.current.scrollHeight;},[log]);
 
@@ -314,9 +345,38 @@ export default function App(){
     addLog(eff.speed>=m.speed?`You move first.`:`${m.name} moves first.`);
     setPhase("fighting");
     let pHp=human.hp,mHp=m.hp,mAT=m.armourTokens,r=1;
-    const pAtk=async()=>{const dmg=eff.weapon,abs=Math.min(mAT,dmg);mAT=Math.max(0,mAT-abs);const dealt=dmg-abs;mHp=Math.max(0,mHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`You: ${pts.join(", ")}. ${m.name}: ${mHp} HP.`);setMonsterHp(mHp);setMonsterAT(mAT);if(dealt>0)setMonsterHitKey(k=>k+1);await sleep(600);};
-    const mAtk=async()=>{if(mHp<=0)return;if(luckDodge(eff.luck)){addLog(`Dodged.`);await sleep(350);return;}const dmg=m.weapon,abs=Math.min(eff.armour,dmg),dealt=dmg-abs;pHp=Math.max(0,pHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`${m.name}: ${pts.join(", ")}. Your HP: ${pHp}.`);setHuman(p=>({...p,hp:pHp}));if(dealt>0)setPlayerHitKey(k=>k+1);await sleep(600);};
+    const pAtk=async()=>{
+      setCombatAnim(prev=>({who:"player",type:"attack",tick:prev.tick+1}));
+      await sleep(280);
+      const dmg=eff.weapon,abs=Math.min(mAT,dmg);mAT=Math.max(0,mAT-abs);const dealt=dmg-abs;mHp=Math.max(0,mHp-dealt);
+      const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);
+      addLog(`You: ${pts.join(", ")}. ${m.name}: ${mHp} HP.`);setMonsterHp(mHp);setMonsterAT(mAT);
+      setCombatAnim(prev=>({who:"monster",type:"hit",tick:prev.tick+1}));
+      if(dealt>0)setMonsterHitKey(k=>k+1);
+      await sleep(320);
+      setCombatAnim(prev=>({...prev,who:null,type:null}));
+    };
+    const mAtk=async()=>{
+      if(mHp<=0)return;
+      setCombatAnim(prev=>({who:"monster",type:"attack",tick:prev.tick+1}));
+      await sleep(280);
+      if(luckDodge(eff.luck)){
+        setCombatAnim(prev=>({who:"player",type:"dodge",tick:prev.tick+1}));
+        addLog(`Dodged.`);
+        await sleep(320);
+        setCombatAnim(prev=>({...prev,who:null,type:null}));
+        return;
+      }
+      const dmg=m.weapon,abs=Math.min(eff.armour,dmg),dealt=dmg-abs;pHp=Math.max(0,pHp-dealt);
+      const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);
+      addLog(`${m.name}: ${pts.join(", ")}. Your HP: ${pHp}.`);setHuman(p=>({...p,hp:pHp}));
+      setCombatAnim(prev=>({who:"player",type:"hit",tick:prev.tick+1}));
+      if(dealt>0)setPlayerHitKey(k=>k+1);
+      await sleep(320);
+      setCombatAnim(prev=>({...prev,who:null,type:null}));
+    };
     while(pHp>0&&mHp>0&&r<=20){if(r>1)addLog(`— Round ${r} —`);if(eff.speed>=m.speed){await pAtk();if(mHp>0)await mAtk();}else{await mAtk();if(pHp>0)await pAtk();}mAT=Math.min(m.armour,mAT+1);setMonsterAT(mAT);r++;}
+    setCombatAnim({who:null,type:null,tick:0});
     setHuman(p=>({...p,hp:pHp}));
     if(pHp<=0){
       const lost=Math.floor(human.gold/2);const kept=human.gold-lost;
@@ -380,7 +440,12 @@ export default function App(){
     setPhase("result");
   }
 
-  function restart(){setHuman(initPlayer());setAi(initPlayer());setRound(1);setMonster(null);setPhase("draft");setFightLog([]);setWinner(null);setSeenGuide(false);setDeathMsg(null);setAiWinMsg(null);setLog(["Choose your starting trait."]);}
+  function restart(){
+    setHuman(initPlayer());setAi(initPlayer());setRound(1);setMonster(null);
+    setPhase("draft");setFightLog([]);setWinner(null);setSeenGuide(false);setDeathMsg(null);setAiWinMsg(null);
+    setCombatAnim({who:null,type:null,tick:0});setPlayerHitKey(0);setMonsterHitKey(0);
+    setLog(["Choose your starting trait."]);
+  }
 
   const shopB=shopAvail(BATTLE_CARDS,human.battleCards,"battle");
 
@@ -547,6 +612,7 @@ export default function App(){
       {/* FIGHTING */}
       {phase==="fighting"&&monster&&(
         <div style={{marginBottom:14}}>
+          <FightArena monsterIcon={monster.icon} monsterName={monster.name} combatAnim={combatAnim}/>
           <div style={{display:"flex",gap:8,marginBottom:12}}>
             <HitFlash trigger={playerHitKey} isPlayer={true}>
               <div style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:4,padding:12}}>
