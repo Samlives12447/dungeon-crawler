@@ -231,6 +231,18 @@ function ActionTile({icon,title,subtitle,borderColor,onClick,disabled}){
   </div>);
 }
 
+function HitFlash({trigger,isPlayer,children}){
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!trigger)return;
+    const el=ref.current;if(!el)return;
+    el.style.animation="none";
+    void el.offsetHeight;
+    el.style.animation=isPlayer?"playerHit 0.45s ease":"monsterHit 0.45s ease";
+  },[trigger]);
+  return<div ref={ref}>{children}</div>;
+}
+
 export default function App(){
   const [human,setHuman]=useState(initPlayer);
   const [ai,setAi]=useState(initPlayer);
@@ -249,6 +261,8 @@ export default function App(){
   const [seenGuide,setSeenGuide]=useState(false);
   const [deathMsg,setDeathMsg]=useState(null);
   const [aiWinMsg,setAiWinMsg]=useState(null);
+  const [playerHitKey,setPlayerHitKey]=useState(0);
+  const [monsterHitKey,setMonsterHitKey]=useState(0);
   const logRef=useRef(null);
   useEffect(()=>{if(logRef.current)logRef.current.scrollTop=logRef.current.scrollHeight;},[log]);
 
@@ -300,8 +314,8 @@ export default function App(){
     addLog(eff.speed>=m.speed?`You move first.`:`${m.name} moves first.`);
     setPhase("fighting");
     let pHp=human.hp,mHp=m.hp,mAT=m.armourTokens,r=1;
-    const pAtk=async()=>{const dmg=eff.weapon,abs=Math.min(mAT,dmg);mAT=Math.max(0,mAT-abs);const dealt=dmg-abs;mHp=Math.max(0,mHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`You: ${pts.join(", ")}. ${m.name}: ${mHp} HP.`);setMonsterHp(mHp);setMonsterAT(mAT);await sleep(600);};
-    const mAtk=async()=>{if(mHp<=0)return;if(luckDodge(eff.luck)){addLog(`Dodged.`);await sleep(350);return;}const dmg=m.weapon,abs=Math.min(eff.armour,dmg),dealt=dmg-abs;pHp=Math.max(0,pHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`${m.name}: ${pts.join(", ")}. Your HP: ${pHp}.`);setHuman(p=>({...p,hp:pHp}));await sleep(600);};
+    const pAtk=async()=>{const dmg=eff.weapon,abs=Math.min(mAT,dmg);mAT=Math.max(0,mAT-abs);const dealt=dmg-abs;mHp=Math.max(0,mHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`You: ${pts.join(", ")}. ${m.name}: ${mHp} HP.`);setMonsterHp(mHp);setMonsterAT(mAT);if(dealt>0)setMonsterHitKey(k=>k+1);await sleep(600);};
+    const mAtk=async()=>{if(mHp<=0)return;if(luckDodge(eff.luck)){addLog(`Dodged.`);await sleep(350);return;}const dmg=m.weapon,abs=Math.min(eff.armour,dmg),dealt=dmg-abs;pHp=Math.max(0,pHp-dealt);const pts=[];if(abs>0)pts.push(`${abs} blocked`);if(dealt>0)pts.push(`${dealt} damage`);addLog(`${m.name}: ${pts.join(", ")}. Your HP: ${pHp}.`);setHuman(p=>({...p,hp:pHp}));if(dealt>0)setPlayerHitKey(k=>k+1);await sleep(600);};
     while(pHp>0&&mHp>0&&r<=20){if(r>1)addLog(`— Round ${r} —`);if(eff.speed>=m.speed){await pAtk();if(mHp>0)await mAtk();}else{await mAtk();if(pHp>0)await pAtk();}mAT=Math.min(m.armour,mAT+1);setMonsterAT(mAT);r++;}
     setHuman(p=>({...p,hp:pHp}));
     if(pHp<=0){
@@ -393,6 +407,16 @@ export default function App(){
 
   return(
     <div style={{fontFamily:"'Segoe UI',system-ui,sans-serif",background:C.bg,minHeight:"100vh",color:C.text,padding:16,maxWidth:500,margin:"0 auto",fontSize:15}}>
+      <style>{`
+        @keyframes playerHit {
+          0%,15%{box-shadow:inset 0 0 0 2px #a02020,0 0 18px #6b1a1a;background:#2a0808;}
+          100%{box-shadow:none;background:#141414;}
+        }
+        @keyframes monsterHit {
+          0%,15%{box-shadow:inset 0 0 0 2px #8a2020,0 0 14px #3a0808;background:#1e0808;}
+          100%{box-shadow:none;background:#111111;}
+        }
+      `}</style>
       {showGuide&&<CombatGuide onClose={()=>setShowGuide(false)}/>}
       {deathMsg&&<DeathPopup msg={deathMsg} onClose={()=>{setDeathMsg(null);runAiTurn();}}/>}
       {aiWinMsg&&<AiWinPopup msg={aiWinMsg} onClose={()=>{setAiWinMsg(null);restart();}}/>}
@@ -524,17 +548,21 @@ export default function App(){
       {phase==="fighting"&&monster&&(
         <div style={{marginBottom:14}}>
           <div style={{display:"flex",gap:8,marginBottom:12}}>
-            <div style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:4,padding:12}}>
-              <div style={{fontWeight:"bold",color:C.goldBright,fontSize:13,marginBottom:2}}>YOU</div>
-              <HPBar current={human.hp} max={eff.maxHp} color={C.goldBright}/>
-              <div style={{fontSize:12,color:C.textDim}}>{human.hp} / {eff.maxHp}</div>
-            </div>
+            <HitFlash trigger={playerHitKey} isPlayer={true}>
+              <div style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:4,padding:12}}>
+                <div style={{fontWeight:"bold",color:C.goldBright,fontSize:13,marginBottom:2}}>YOU</div>
+                <HPBar current={human.hp} max={eff.maxHp} color={C.goldBright}/>
+                <div style={{fontSize:12,color:C.textDim}}>{human.hp} / {eff.maxHp}</div>
+              </div>
+            </HitFlash>
             <div style={{display:"flex",alignItems:"center",color:C.textDim,fontSize:14,padding:"0 4px"}}>vs</div>
-            <div style={{flex:1,background:C.bgCardAlt,border:`1px solid ${C.border}`,borderRadius:4,padding:12}}>
-              <div style={{fontWeight:"bold",color:"#7a3030",fontSize:13,marginBottom:2}}>{monster.icon} {monster.name}</div>
-              <HPBar current={monsterHp} max={monster.maxHp} color="#6a2020"/>
-              <div style={{fontSize:12,color:C.textDim}}>{monsterHp} / {monster.maxHp} · 🛡️{monsterAT}</div>
-            </div>
+            <HitFlash trigger={monsterHitKey} isPlayer={false}>
+              <div style={{flex:1,background:C.bgCardAlt,border:`1px solid ${C.border}`,borderRadius:4,padding:12}}>
+                <div style={{fontWeight:"bold",color:"#7a3030",fontSize:13,marginBottom:2}}>{monster.icon} {monster.name}</div>
+                <HPBar current={monsterHp} max={monster.maxHp} color="#6a2020"/>
+                <div style={{fontSize:12,color:C.textDim}}>{monsterHp} / {monster.maxHp} · 🛡️{monsterAT}</div>
+              </div>
+            </HitFlash>
           </div>
           <div style={{textAlign:"center",fontSize:13,color:eff.speed>=monster.speed?C.goldBright:C.textDim,marginBottom:10}}>{eff.speed>=monster.speed?"You go first.":"Enemy goes first."}</div>
           <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
