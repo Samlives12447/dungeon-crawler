@@ -233,22 +233,23 @@ function FightArena({monsterIcon,monsterName,combatAnim}){
       @keyframes dodge{0%,100%{transform:translateY(0)}35%{transform:translateY(-24px)}}
       @keyframes flash-hit{0%,100%{filter:none}45%{filter:drop-shadow(0 0 16px #ff2020) brightness(1.7)}}
     `}</style>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 32px",background:"#070707",borderRadius:4,marginBottom:12,border:`1px solid ${C.border}`,minHeight:110}}>
-      <div style={{textAlign:"center",minWidth:68}}>
-        <div key={`p-${a.tick}`} style={{fontSize:54,display:"inline-block",
+    <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"24px 28px 16px",background:"#050505",borderRadius:4,marginBottom:12,border:`1px solid ${C.border}`,minHeight:160,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${C.goldDim},transparent,#3a0000)`}}/>
+      <div style={{textAlign:"center"}}>
+        <div key={`p-${a.tick}`} style={{fontSize:88,display:"inline-block",lineHeight:1,
           animation:a.who==="player"&&a.type==="attack"?"lunge-r 0.45s ease-in-out":
                    a.who==="player"&&a.type==="hit"?"shake 0.4s ease,flash-hit 0.4s ease":
                    a.who==="player"&&a.type==="dodge"?"dodge 0.35s ease":"none"}}>🧙</div>
-        <div style={{fontSize:11,color:C.goldBright,letterSpacing:1,marginTop:2}}>YOU</div>
+        <div style={{fontSize:13,color:C.goldBright,fontWeight:"bold",letterSpacing:2,marginTop:6}}>YOU</div>
       </div>
-      <div style={{color:C.textDim,fontSize:22,opacity:0.5}}>⚔️</div>
-      <div style={{textAlign:"center",minWidth:68}}>
-        <div key={`m-${a.tick}`} style={{fontSize:54,display:"inline-block",
+      <div style={{color:C.textDim,fontSize:18,opacity:0.4,paddingBottom:28}}>VS</div>
+      <div style={{textAlign:"center"}}>
+        <div key={`m-${a.tick}`} style={{fontSize:88,display:"inline-block",lineHeight:1,
           animation:a.who==="monster"&&a.type==="attack"?"lunge-l 0.45s ease-in-out":
                    a.who==="monster"&&a.type==="hit"?"shake 0.4s ease,flash-hit 0.4s ease":"none"}}>
           {monsterIcon}
         </div>
-        <div style={{fontSize:11,color:"#7a3030",letterSpacing:1,marginTop:2}}>{(monsterName||"").toUpperCase()}</div>
+        <div style={{fontSize:13,color:"#8a3030",fontWeight:"bold",letterSpacing:2,marginTop:6}}>{(monsterName||"").toUpperCase()}</div>
       </div>
     </div>
   </>);}
